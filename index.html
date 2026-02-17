@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML to PDF Converter</title>
+    <title>HTML to PDF & Word Converter</title>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Montserrat:wght@200;300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/html-docx-js-typescript/dist/html-docx.umd.js"></script>
     <style>
         *, *::before, *::after {
             margin: 0;
@@ -231,12 +232,80 @@
             color: #bfb8ae;
         }
 
+        /* Format selector */
+        .format-section {
+            margin-top: 36px;
+            text-align: center;
+        }
+
+        .format-options {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            margin-top: 12px;
+        }
+
+        .format-option {
+            position: relative;
+        }
+
+        .format-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .format-option label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            padding: 14px 32px;
+            border: 1px solid #c9c0b6;
+            cursor: pointer;
+            color: #8a7e72;
+            transition: all 0.3s ease;
+        }
+
+        .format-option:first-child label {
+            border-right: none;
+        }
+
+        .format-option input[type="radio"]:checked + label {
+            background-color: #1a1a1a;
+            border-color: #1a1a1a;
+            color: #FAF9F6;
+        }
+
+        .format-option input[type="radio"]:checked + label svg {
+            stroke: #FAF9F6;
+        }
+
+        .format-option label:hover {
+            background-color: #f0ece6;
+        }
+
+        .format-option input[type="radio"]:checked + label:hover {
+            background-color: #333333;
+        }
+
+        .format-icon {
+            width: 18px;
+            height: 18px;
+            stroke: #8a7e72;
+            transition: stroke 0.3s ease;
+        }
+
         /* Buttons */
         .actions {
             display: flex;
             justify-content: center;
             gap: 16px;
-            margin-top: 40px;
+            margin-top: 32px;
         }
 
         .btn {
@@ -359,6 +428,21 @@
             textarea {
                 min-height: 240px;
             }
+
+            .format-options {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .format-option label {
+                width: 240px;
+                justify-content: center;
+            }
+
+            .format-option:first-child label {
+                border-right: 1px solid #c9c0b6;
+                border-bottom: none;
+            }
         }
     </style>
 </head>
@@ -366,7 +450,7 @@
 
     <header>
         <div class="logo">Convertisseur</div>
-        <div class="tagline">HTML to PDF &mdash; Elegantly Transformed</div>
+        <div class="tagline">HTML to PDF &amp; Word &mdash; Elegantly Transformed</div>
     </header>
 
     <main>
@@ -413,10 +497,42 @@
             <div class="preview-container" id="preview"></div>
         </div>
 
+        <!-- Format Selector -->
+        <div class="format-section">
+            <label class="editor-label">Choose Format</label>
+            <div class="format-options">
+                <div class="format-option">
+                    <input type="radio" name="format" id="format-pdf" value="pdf" checked>
+                    <label for="format-pdf">
+                        <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="9" y1="13" x2="15" y2="13"/>
+                            <line x1="9" y1="17" x2="15" y2="17"/>
+                        </svg>
+                        PDF
+                    </label>
+                </div>
+                <div class="format-option">
+                    <input type="radio" name="format" id="format-docx" value="docx">
+                    <label for="format-docx">
+                        <svg class="format-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="8" y1="13" x2="16" y2="13"/>
+                            <line x1="8" y1="17" x2="13" y2="17"/>
+                            <line x1="8" y1="9" x2="11" y2="9"/>
+                        </svg>
+                        Word
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
-            <button class="btn btn-primary" onclick="generatePDF()">Generate PDF</button>
+            <button class="btn btn-primary" id="generate-btn" onclick="generate()">Generate PDF</button>
         </div>
     </main>
 
@@ -433,6 +549,15 @@
         const fileInput = document.getElementById('file-input');
         const fileNameEl = document.getElementById('file-name');
         const uploadZone = document.getElementById('upload-zone');
+        const generateBtn = document.getElementById('generate-btn');
+
+        // Update button text based on format
+        document.querySelectorAll('input[name="format"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const format = document.querySelector('input[name="format"]:checked').value;
+                generateBtn.textContent = format === 'pdf' ? 'Generate PDF' : 'Generate Word';
+            });
+        });
 
         // Live preview on paste tab
         let debounceTimer;
@@ -454,7 +579,6 @@
                 preview.innerHTML = '';
                 return;
             }
-            // Render in a sandboxed way
             preview.innerHTML = html;
         }
 
@@ -502,6 +626,15 @@
             showToast('Cleared');
         }
 
+        function generate() {
+            const format = document.querySelector('input[name="format"]:checked').value;
+            if (format === 'pdf') {
+                generatePDF();
+            } else {
+                generateWord();
+            }
+        }
+
         function generatePDF() {
             const html = htmlInput.value.trim();
             if (!html) {
@@ -511,18 +644,24 @@
 
             showToast('Generating your PDF...');
 
-            // Create a temporary container for PDF generation
+            // Create a temporary off-screen container for PDF generation
             const container = document.createElement('div');
             container.innerHTML = html;
-            container.style.padding = '20px';
+            container.style.cssText = 'padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.6; color: #1a1a1a;';
             document.body.appendChild(container);
 
             const options = {
-                margin:       0.5,
+                margin:       [0.75, 0.75, 0.75, 0.75],
                 filename:     'document.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                html2canvas:  {
+                    scale: 2,
+                    useCORS: true,
+                    letterRendering: true,
+                    logging: false
+                },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
             html2pdf().set(options).from(container).save().then(() => {
@@ -532,6 +671,84 @@
                 document.body.removeChild(container);
                 showToast('An error occurred');
             });
+        }
+
+        function generateWord() {
+            const html = htmlInput.value.trim();
+            if (!html) {
+                showToast('Please enter or upload HTML first');
+                return;
+            }
+
+            showToast('Generating your Word document...');
+
+            try {
+                // Wrap the HTML with proper document structure and styles for Word
+                const fullHtml = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body {
+                                font-family: 'Calibri', 'Arial', sans-serif;
+                                font-size: 12pt;
+                                line-height: 1.6;
+                                color: #1a1a1a;
+                                margin: 0;
+                                padding: 0;
+                            }
+                            h1 { font-size: 24pt; margin: 12pt 0 6pt 0; font-weight: bold; }
+                            h2 { font-size: 18pt; margin: 10pt 0 6pt 0; font-weight: bold; }
+                            h3 { font-size: 14pt; margin: 8pt 0 4pt 0; font-weight: bold; }
+                            h4 { font-size: 12pt; margin: 6pt 0 4pt 0; font-weight: bold; }
+                            p { margin: 0 0 8pt 0; }
+                            ul, ol { margin: 6pt 0 6pt 24pt; padding: 0; }
+                            li { margin: 2pt 0; }
+                            table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+                            th, td { border: 1px solid #cccccc; padding: 6pt 8pt; text-align: left; }
+                            th { background-color: #f2f2f2; font-weight: bold; }
+                            blockquote { margin: 8pt 0 8pt 24pt; padding-left: 12pt; border-left: 3px solid #cccccc; color: #555555; }
+                            pre, code { font-family: 'Courier New', monospace; font-size: 10pt; background-color: #f5f5f5; }
+                            pre { padding: 8pt 12pt; margin: 8pt 0; }
+                            a { color: #1a5276; text-decoration: underline; }
+                            img { max-width: 100%; height: auto; }
+                            hr { border: none; border-top: 1px solid #cccccc; margin: 12pt 0; }
+                        </style>
+                    </head>
+                    <body>
+                        ${html}
+                    </body>
+                    </html>
+                `;
+
+                // Use html-docx-js to convert — margins in mm: top, right, bottom, left
+                const docxOptions = {
+                    margin: {
+                        top: 1440,      // 1 inch in twips (1440 twips = 1 inch)
+                        right: 1440,
+                        bottom: 1440,
+                        left: 1440
+                    },
+                    orientation: 'portrait'
+                };
+
+                const converted = htmlDocx.asBlob(fullHtml, docxOptions);
+
+                // Download the file
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(converted);
+                link.download = 'document.docx';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                showToast('Word document downloaded');
+            } catch (err) {
+                console.error('Word generation error:', err);
+                showToast('An error occurred generating the Word document');
+            }
         }
 
         function showToast(message) {
